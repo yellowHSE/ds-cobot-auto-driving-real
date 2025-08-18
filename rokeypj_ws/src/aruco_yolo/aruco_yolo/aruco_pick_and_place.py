@@ -17,7 +17,7 @@ from aruco_msgs.msg import MarkerArray, Marker
 from geometry_msgs.msg import Twist
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 import getkey
-from std_msgs.msg import Header
+from std_msgs.msg import Header, Float32
 from sensor_msgs.msg import JointState
 
 from geometry_msgs.msg import Twist, Pose, PoseArray
@@ -42,7 +42,7 @@ class ArucoMarkerListener(Node):
         super().__init__('aruco_marker_listener')
 
         # Change this to the desired marker ID from pick_n_place.launch.py file, Declare parameter with default integer value
-        self.markerid = self.declare_parameter('markerid', 0).get_parameter_value().integer_value
+        self.markerid = self.declare_parameter('markerid', 1).get_parameter_value().integer_value
 
         self.target_marker_id = self.markerid 
 
@@ -51,6 +51,13 @@ class ArucoMarkerListener(Node):
             'detected_markers',
             self.aruco_listener_callback,
             10)
+        
+        self.subscription = self.create_subscription(
+            Float32,
+            '/aruco/distance',
+            self.aruco_distance_callback,
+            10)
+        
         self.subscription  # prevent unused variable warning
         self.cmd_vel_publisher = self.create_publisher(Twist, '/cmd_vel', 2)
 
@@ -98,6 +105,8 @@ class ArucoMarkerListener(Node):
         self.count = 0
         self.aruco_pose = None  # Aruco marker의 pose 정보를 저장할 변수
 
+        self.distance = 0.8
+
         #self.create_timer(1.0, self.run_tasks)
         
         #self.twist = Twist()
@@ -125,16 +134,15 @@ class ArucoMarkerListener(Node):
             if 'joint4' in name:
                 print(f'joint4 : {position}')
 
-    def aruco_listener_callback(self, msg):
+    def aruco_distance_callback(self, msg):
+        self.distance = msg.data
         
-        #Test...
-        print('aruco_listener_callback')
-        self.aruco_arm_controll()
 
-
-
+    def aruco_listener_callback(self, msg):
         for marker in msg.markers:
             if marker.id == self.target_marker_id:
+
+                self.get_logger().info(f'Marker Info: {marker}')
                 self.get_logger().debug(f'Marker ID: {marker.id}, PositionZ: {marker.pose.pose.position.z}')
                 self.get_logger().info(f'Position: x:[{marker.pose.pose.position.x}, y:[{marker.pose.pose.position.y},z:[{marker.pose.pose.position.z}]] ')
                 self.get_logger().info(f'Orientation: x:[{marker.pose.pose.orientation.x}, y:[{marker.pose.pose.orientation.y},z:[{marker.pose.pose.orientation.z}]] ')
@@ -144,21 +152,20 @@ class ArucoMarkerListener(Node):
                 self.aruco_position_z = marker.pose.pose.position.z
 
                 # if marker.pose.pose.position.z > 0.30:
-                if marker.pose.pose.position.z > 0.41:
+                if self.distance > 0.7:
                     self.get_logger().info(f'publish_cmd_vel(0.10)')
-                    self.publish_cmd_vel(0.10)
-                elif marker.pose.pose.position.z > 0.31:
+                    self.publish_cmd_vel(0.05)
+                elif self.distance > 0.6:
                     self.get_logger().info(f'publish_cmd_vel(0.06)')                    
-                    self.publish_cmd_vel(0.06)
-                elif marker.pose.pose.position.z > 0.21 :
+                    self.publish_cmd_vel(0.03)
+                elif self.distance > 0.48 :
                     self.get_logger().info(f'publish_cmd_vel(0.04)')                    
-                    self.publish_cmd_vel(0.04)
+                    self.publish_cmd_vel(0.01)
                 else:
                     self.publish_cmd_vel(0.0)
                     self.get_logger().info(f'finish_move = True')                    
-                    self.finish_move = True
-
                     self.aruco_arm_controll()
+                    self.finish_move = True
 
                 break
 
@@ -269,7 +276,7 @@ class ArucoMarkerListener(Node):
 
 
    
-            response = arm_client.send_request(1, "08_home")
+            response = arm_client.send_request(1, "camera_start")
             arm_client.get_logger().info(f'Response: {response.response}')
             time.sleep(1)
 
@@ -293,9 +300,48 @@ class ArucoMarkerListener(Node):
 
             self.finish_move = True
 
-            print("Impossible Mission Clear")
+            print("Pick and place Mission Clear")
 
             self.armrun = False
+
+    def aruco_move_pick(node):
+        # node = ArucoMarkerListener()
+        #rclpy.spin(node)
+
+        joint_pub = node.create_publisher(JointTrajectory, '/arm_controller/joint_trajectory', 10)
+        trajectory_msg = JointTrajectory()
+
+        trajectory_msg.header = Header()
+        trajectory_msg.header.frame_id = ''
+        trajectory_msg.joint_names = ['joint1', 'joint2', 'joint3', 'joint4']
+
+        point = JointTrajectoryPoint()
+        point.velocities = [0.0] * 4
+        point.accelerations = [0.0] * 4
+        point.time_from_start.sec = 0
+        point.time_from_start.nanosec = 500
+
+
+        # Initial Position
+        #ros2 topic list => ros2 topic echo /joint_states --once
+        #point.positions =  [0.0, 0.5236, -0.7156, 0.8203]  # (단위: 라디안) <= 0, -44, 9, 72
+        #point.positions = [0.0, 0.7317, -0.6918, 0.7701]    
+        point.positions = [0.0, 0.5317, -0.6918, 0.7701] 
+
+        trajectory_msg.points = [point]
+        joint_pub.publish(trajectory_msg)
+
+        print("Pick and Place Init done")
+
+        while True:
+            rclpy.spin_once(node)
+            
+            if(node.finish_move == True):
+                node.finish_move = False
+                break
+
+        node.destroy_node()
+        # rclpy.shutdown()
     
 def main(args=None):
     rclpy.init(args=args)
@@ -326,92 +372,12 @@ def main(args=None):
     joint_pub.publish(trajectory_msg)
 
     print("Pick and Place Init done")
-    rclpy.spin_once(node)
 
-    while(rclpy.ok()):
-        print("Key Input Waiting.")
-        print("0: lane tracking")
-        print("1: cube home")
-        print("2: box home")
-        print("3: aruco cube")
-        print("4: forward")
-        print("5: backward")    
-        print("8: joint states")   
-        print("a: aruco/move cube(rock)")   
-
-        key_value = getkey.getkey()
-        if key_value == '0':          # lane tracking
-            print(f"No. {key_value}")
-            point.positions = [0.0, 0.5317, -0.6918, 0.7701] 
-            print("point",point.positions)
-            joint_pub.publish(trajectory_msg)        
-        elif key_value == '1':          # home 1
-            print(f"No. {key_value}")
-            point.positions = [0.0, -0.058, -0.258, 1.94]
-            print("point",point.positions)
-            joint_pub.publish(trajectory_msg)
-
-        elif key_value == '2':        # move forward          node.twist.linear.x = 0.5
-            node.twist.angular.z = 0.0
-            node.cmd_vel_publisher.publish(node.twist)      
-            print(f"No. {key_value}")
-            point.positions = [0.0, -1.052, 1.106, 0.029]
-            print("point",point.positions)
-            joint_pub.publish(trajectory_msg)
-
-        elif key_value == '3':        # move wheel to aruco cube
-            print(f"No. {key_value}")
-            while True:
-                rclpy.spin_once(node)
-                
-                if(node.finish_move == True):
-                    node.finish_move = False
-                    break
-              
-        elif key_value == '4':        # forward
-            print(f"No. {key_value}")        
-            node.twist.linear.x = 0.5
-            node.twist.angular.z = 0.0
-            node.cmd_vel_publisher.publish(node.twist)            
-
-        elif key_value == '5':        # backward
-            print(f"No. {key_value}") 
-            node.twist.linear.x =-0.5
-            node.twist.angular.z = 0.0
-            node.cmd_vel_publisher.publish(node.twist)            
-
-        elif key_value == '6':        # forward + left turn
-            print(f"No. {key_value}")
-            node.twist.linear.x = 0.5
-            node.twist.angular.z = 0.1
-            node.cmd_vel_publisher.publish(node.twist)            
-
-        elif key_value == '7':        # forward + right turn
-            print(f"No. {key_value}")
-            node.twist.linear.x = 0.5
-            node.twist.angular.z =-0.1
-            node.cmd_vel_publisher.publish(node.twist)            
-
-        elif key_value == '8':        # get joint value
-            print(f"No. {key_value}")
-            node.get_joint = True
-            rclpy.spin_once(node)
-            node.get_joint = False
-
-        elif key_value == '9':        # distance and offset for marker
-            print(f"No. {key_value}")
-            rclpy.spin_once(node)
-        elif key_value == 'a':
-            print(f"No. {key_value}")
-            node.aruco_arm_controll()           
-        elif key_value == 'b':
-            print(f"No. {key_value}")
-            point.positions = [0.0, 0.5317, -0.0918, 0.7701] 
-            print("point",point.positions)
-            joint_pub.publish(trajectory_msg)  
-
-        elif key_value == 'q':
-            print(f"No. {key_value}")
+    while True:
+        rclpy.spin_once(node)
+        
+        if(node.finish_move == True):
+            node.finish_move = False
             break
 
     node.destroy_node()

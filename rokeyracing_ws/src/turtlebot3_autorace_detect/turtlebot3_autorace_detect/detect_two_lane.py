@@ -72,7 +72,7 @@ class DetectLane(Node):
 
         if self.sub_image_type == 'compressed':
             self.sub_image_original = self.create_subscription(
-                CompressedImage, '/detect/image_input/compressed', self.cbFindLane, 1)
+                CompressedImage, '/detect/image_input/compressed', self.cbFindLane, 10)
         else:
             self.sub_image_original = self.create_subscription(
                 Image, '/detect/image_input', self.cbFindLane, 1)

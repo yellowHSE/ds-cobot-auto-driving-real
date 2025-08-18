@@ -22,6 +22,7 @@ from rclpy.node import Node
 from std_msgs.msg import Bool
 from std_msgs.msg import Float64
 from std_msgs.msg import String
+from aruco_yolo.aruco_pick_and_place import ArucoMarkerListener
 
 
 class ControlLane(Node):
@@ -91,6 +92,8 @@ class ControlLane(Node):
         self.avoid_twist = Twist()
         self.stop_bar = 'go'
 
+        self.aruco = ArucoMarkerListener()
+
     def callback_get_max_vel(self, max_vel_msg):
         self.MAX_VEL = max_vel_msg.data
 
@@ -134,6 +137,8 @@ class ControlLane(Node):
             self.get_logger().info(f'self.stop_bar: {self.stop_bar}')
             self.get_logger().info(f'self.traffic_light_state: {self.traffic_light_state}')
             self.get_logger().info(f'stop: {stop.linear.x}')
+        elif len(self.aruco.marker) > 0:
+            self.aruco.aruco_move_pick(self.aruco)
         else:
             center = desired_center.data
             error = center - 460

@@ -36,7 +36,7 @@ dist = np.array([[-0.01792346, 0.68685818, 0.0023631, -0.00455134, -2.06831632]]
 
 package_share_directory = get_package_share_directory('aruco_yolo')
 #model_path = os.path.join(package_share_directory, 'models', 'yolov8s_trained.pt')
-model_path = "/home/rokey12/rokeypj_ws/src/aruco_yolo/models/new_new_new_best.pt"
+model_path = "/home/rokey-jw/ds-cobot-auto-driving-real/rokeypj_ws/src/aruco_yolo/models/new_new_new_best.pt"
 print(f"Model path: {model_path}")
 
 if not os.path.exists(model_path):
@@ -55,7 +55,7 @@ class YoloDetect(Node):
         self.subscription_rgb = self.create_subscription(
             CompressedImage,
             'image_raw/compressed',
-            self.listener_callback_rgb, 1)
+            self.listener_callback_rgb, 10)
         self.subscription_rgb  # prevent unused variable warning
 
         self.img_publisher_ = self.create_publisher(CompressedImage, 'yolo/compressed', 1)

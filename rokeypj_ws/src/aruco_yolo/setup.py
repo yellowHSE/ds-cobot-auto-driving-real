@@ -30,6 +30,7 @@ setup(
             'moveit_client = aruco_yolo.moveit_client:main',
             'pick_n_place = aruco_yolo.pick_n_place:main',
             'pick_and_place = aruco_yolo.pick_and_place:main',            
+            'aruco_pick_and_place = aruco_yolo.aruco_pick_and_place:main',            
             'compressed_image_pub = aruco_yolo.compressed_image_pub:main',
             'yolo_detector = aruco_yolo.yolo_detector:main',
             'camera_info = aruco_yolo.camera_info:main',
