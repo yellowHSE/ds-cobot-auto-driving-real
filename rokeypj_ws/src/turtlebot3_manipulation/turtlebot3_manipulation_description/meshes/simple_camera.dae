@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<COLLADA xmlns="https://www.collada.org/2005/11/COLLADASchema" version="1.4.1">
+  <asset>
+    <contributor>
+      <author>ChatGPT</author>
+      <authoring_tool>Manual simple camera model</authoring_tool>
+    </contributor>
+    <created>2025-05-20T12:00:00</created>
+    <modified>2025-05-20T12:00:00</modified>
+    <unit name="meter" meter="1"/>
+    <up_axis>Y_UP</up_axis>
+  </asset>
+
+  <library_geometries>
+    <geometry id="box_geom" name="BoxGeometry">
+      <mesh>
+        <source id="box_positions">
+          <float_array id="box_positions_array" count="24">
+            -0.05 0.0 -0.05
+             0.05 0.0 -0.05
+             0.05 0.1 -0.05
+            -0.05 0.1 -0.05
+            -0.05 0.0  0.05
+             0.05 0.0  0.05
+             0.05 0.1  0.05
+            -0.05 0.1  0.05
+          </float_array>
+          <technique_common>
+            <accessor source="#box_positions_array" count="8" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+
+        <vertices id="box_vertices">
+          <input semantic="POSITION" source="#box_positions"/>
+        </vertices>
+
+        <lineset count="12">
+          <input semantic="VERTEX" source="#box_vertices" offset="0"/>
+          <p>
+            0 1 1 2 2 3 3 0
+            4 5 5 6 6 7 7 4
+            0 4 1 5 2 6 3 7
+          </p>
+        </lineset>
+
+        <polygons count="6" material="Material">
+          <input semantic="VERTEX" source="#box_vertices" offset="0"/>
+          <p>
+            0 1 2 3
+            7 6 5 4
+            3 2 6 7
+            0 4 5 1
+            1 5 6 2
+            0 3 7 4
+          </p>
+        </polygons>
+
+      </mesh>
+    </geometry>
+  </library_geometries>
+
+  <library_visual_scenes>
+    <visual_scene id="Scene" name="Scene">
+      <node id="camera_node" name="camera_node" type="NODE">
+        <matrix sid="transform">1 0 0 0  0 1 0 0  0 0 1 0  0 0 0 1</matrix>
+        <instance_geometry url="#box_geom"/>
+      </node>
+    </visual_scene>
+  </library_visual_scenes>
+
+  <scene>
+    <instance_visual_scene url="#Scene"/>
+  </scene>
+</COLLADA>
+
