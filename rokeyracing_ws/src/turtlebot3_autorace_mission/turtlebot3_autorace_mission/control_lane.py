@@ -170,7 +170,7 @@ class ControlLane(Node):
             self.pub_cmd_vel.publish(slowdown)
             self.get_logger().info(f'slow_down: {slowdown.linear.x}')
             return
-        if self.stop_bar == 'stop' or self.traffic_light_state in ['red', 'yellow']:
+        if self.stop_bar == 'stop' or self.traffic_light_state in ['red']:
             stop = Twist()
             stop.linear.x = 0.0
             self.pub_cmd_vel.publish(stop)

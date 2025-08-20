@@ -368,7 +368,10 @@ class DetectLevelNode(Node):
         thickness = float(min(w, h))  # 막대 두께(짧은 변)
         length = float(max(w, h))     # 막대 길이(긴 변)
 
-        # self.get_logger().info(f"cx = {cx}, cy = {cy}")
+        # self.get_logger().info(f'길이{length}')
+        
+        if length < 80:
+            return
 
 
         # 방향 벡터(주축) 추정: fitLine이 노이즈에 비교적 강함
@@ -415,12 +418,13 @@ class DetectLevelNode(Node):
         #         self.stop_bar_state = 'stop'
         #         self.get_logger().info(f"{self.stop_bar_state} (d={distance_bar2car:.2f})")
         # self.get_logger().info(f"{abs(slope)}")
-        if not (dx == 0 or abs(slope) > 2.0) :
+        
+
+        if not (dx == 0 or abs(slope) > 0.5) :
             # 두께 기반 근접도: 가까울수록 thickness ↑ → 지표 ↓
             # 기존 로직과 단조 방향을 맞추기 위해 scale / thickness 사용
             SCALE_K = 50.0  # 필요시 조정; 카메라/FOV/해상도에 따라 달라짐
             distance_bar2car = SCALE_K / (thickness + 1e-6)
-            self.stop_bar_count = 50
             # self.get_logger().info(f"{distance_bar2car}")
             # self.get_logger().info(f"{distance_bar2car}")
 
@@ -428,14 +432,22 @@ class DetectLevelNode(Node):
                 is_level_detected = True      # stop
                 self.stop_bar_state = 'stop'
                 self.get_logger().info(f"{self.stop_bar_state}")
+                self.stop_bar_count = 1 
             elif cy < 100:
                 is_level_detected = True   # slowdown
                 self.stop_bar_state = 'slowdown'
                 self.get_logger().info(f"{self.stop_bar_state}")
+                # self.stop_bar_count = 1 
+
         else:
-            is_level_opened = True
-            self.stop_bar_state = 'go'
-            self.get_logger().info(self.stop_bar_state)
+            self.get_logger().info(f"카운트 :{self.stop_bar_count}")
+            if self.stop_bar_count == 0:
+                self.stop_bar_state = 'stop'
+
+            else:
+                is_level_opened = True
+                self.stop_bar_state = 'go'
+                self.get_logger().info(self.stop_bar_state)
         
         msg = String()
         msg.data = self.stop_bar_state
