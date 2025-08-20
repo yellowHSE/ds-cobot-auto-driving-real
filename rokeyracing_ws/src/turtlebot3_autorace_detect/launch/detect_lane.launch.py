@@ -54,6 +54,8 @@ def generate_launch_description():
         remappings=[
             ('/detect/image_input', '/camera/image_projected'),
             ('/detect/image_input/compressed', '/camera/image_projected/compressed'),
+            # ('/detect/image_input', '/image_raw'),
+            # ('/detect/image_input/compressed', '/image_raw/compressed'),
             ('/detect/image_output', '/detect/image_lane'),
             ('/detect/image_output/compressed', '/detect/image_lane/compressed'),
             ('/detect/image_output_sub1', '/detect/image_white_lane_marker'),

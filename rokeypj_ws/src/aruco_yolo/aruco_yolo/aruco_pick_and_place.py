@@ -17,7 +17,7 @@ from aruco_msgs.msg import MarkerArray, Marker
 from geometry_msgs.msg import Twist
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 import getkey
-from std_msgs.msg import Header, Float32
+from std_msgs.msg import Header, Float32, Bool
 from sensor_msgs.msg import JointState
 
 from geometry_msgs.msg import Twist, Pose, PoseArray
@@ -46,32 +46,41 @@ class ArucoMarkerListener(Node):
 
         self.target_marker_id = self.markerid 
 
-        self.subscription = self.create_subscription(
+        self.subscription_markers = self.create_subscription(
             MarkerArray,
-            'detected_markers',
+            '/camera/detected_markers',
             self.aruco_listener_callback,
             10)
         
-        self.subscription = self.create_subscription(
+        self.subscription_distance = self.create_subscription(
             Float32,
             '/aruco/distance',
             self.aruco_distance_callback,
             10)
         
-        self.subscription  # prevent unused variable warning
-        self.cmd_vel_publisher = self.create_publisher(Twist, '/cmd_vel', 2)
+
+        # self.cmd_vel_publisher = self.create_publisher(Twist, '/cmd_vel', 2)
+        self.cmd_vel_publisher = self.create_publisher(
+            Twist,
+            '/cmd_vel',
+            1
+        )
 
         self.twist = Twist()
         self.finish_move = False
 
+        self.finish_publisher = self.create_publisher(
+            Bool,
+            '/pick_and_place_finish',
+            1
+        )
 
-        self.subscription = self.create_subscription(
+        self.subscription_joint = self.create_subscription(
             JointState,
             '/joint_states',
             self.joint_states_callback,
             10
         )
-        self.subscription  # prevent unused variable warning
 
         self.get_joint = False
         self.marker = []
@@ -139,6 +148,7 @@ class ArucoMarkerListener(Node):
         
 
     def aruco_listener_callback(self, msg):
+        self.aruco_marker_found = True
         for marker in msg.markers:
             if marker.id == self.target_marker_id:
 
@@ -152,14 +162,14 @@ class ArucoMarkerListener(Node):
                 self.aruco_position_z = marker.pose.pose.position.z
 
                 # if marker.pose.pose.position.z > 0.30:
-                if self.distance > 0.7:
-                    self.get_logger().info(f'publish_cmd_vel(0.10)')
+                if self.distance > 0.6:
+                    self.get_logger().info(f'publish_cmd_vel(0.05)')
                     self.publish_cmd_vel(0.05)
-                elif self.distance > 0.6:
-                    self.get_logger().info(f'publish_cmd_vel(0.06)')                    
+                elif self.distance > 0.57:
+                    self.get_logger().info(f'publish_cmd_vel(0.03)')                    
                     self.publish_cmd_vel(0.03)
-                elif self.distance > 0.48 :
-                    self.get_logger().info(f'publish_cmd_vel(0.04)')                    
+                elif self.distance > 0.52 :
+                    self.get_logger().info(f'publish_cmd_vel(0.01)')                    
                     self.publish_cmd_vel(0.01)
                 else:
                     self.publish_cmd_vel(0.0)
@@ -197,7 +207,6 @@ class ArucoMarkerListener(Node):
 
         print(f"Mission Aruco marker Locaion coordinates: {self.aruco_location_x}, {self.aruco_location_y}, {self.aruco_location_z}")
 
-        ##### TEST, if I cound aruco_marker...
         self.aruco_marker_found = True
 
         if self.aruco_marker_found:
@@ -231,16 +240,16 @@ class ArucoMarkerListener(Node):
             #arm_client.get_logger().info(f'Response: {response.response}')
 
             print("Cube Box Front Start...")       
-            time.sleep(2)
+            time.sleep(1)
             response = arm_client.send_request(1, "02_box_front")
             arm_client.get_logger().info(f'Response: {response.response}')
 
             print("Move to Box Start...")       
-            time.sleep(2)                 
+            time.sleep(0.1)                 
             response = arm_client.send_request(1, "03_move_to_box")
             arm_client.get_logger().info(f'Response: {response.response}')
 
-            time.sleep(2)
+            time.sleep(0.1)
             print("Gripper Close")
             response = arm_client.send_request(2, "pick")
             arm_client.get_logger().info(f'Response: {response.response}')
@@ -248,29 +257,29 @@ class ArucoMarkerListener(Node):
 
 
             print("Move up Start...")       
-            time.sleep(2)                 
+            time.sleep(0.1)                 
             response = arm_client.send_request(1, "04_move_up")
             arm_client.get_logger().info(f'Response: {response.response}')
 
 
 
             print("Conveyor up Start...")       
-            time.sleep(2)  
+            time.sleep(0.1)  
             response = arm_client.send_request(1, "05_conveyor_up")
             arm_client.get_logger().info(f'Response: {response.response}')
 
             print("Conveyor down Start...")       
-            time.sleep(2)  
+            time.sleep(0.1)  
             response = arm_client.send_request(1, "06_conveyor_down")
             arm_client.get_logger().info(f'Response: {response.response}')
 
-            time.sleep(2)
+            time.sleep(0.1)
             print("Gripper Open")
             response = arm_client.send_request(2, "open")
             arm_client.get_logger().info(f'Response: {response.response}')
 
             print("Conveyor up Start...")       
-            time.sleep(2)  
+            time.sleep(0.1)  
             response = arm_client.send_request(1, "07_conveyor_up")
             arm_client.get_logger().info(f'Response: {response.response}')
 
@@ -304,11 +313,11 @@ class ArucoMarkerListener(Node):
 
             self.armrun = False
 
-    def aruco_move_pick(node):
+    def aruco_move_pick(self):
         # node = ArucoMarkerListener()
         #rclpy.spin(node)
 
-        joint_pub = node.create_publisher(JointTrajectory, '/arm_controller/joint_trajectory', 10)
+        joint_pub = self.create_publisher(JointTrajectory, '/arm_controller/joint_trajectory', 10)
         trajectory_msg = JointTrajectory()
 
         trajectory_msg.header = Header()
@@ -334,13 +343,13 @@ class ArucoMarkerListener(Node):
         print("Pick and Place Init done")
 
         while True:
-            rclpy.spin_once(node)
+            rclpy.spin_once(self)
             
-            if(node.finish_move == True):
-                node.finish_move = False
+            if(self.finish_move == True):
+                self.finish_move = False
                 break
 
-        node.destroy_node()
+        self.destroy_node()
         # rclpy.shutdown()
     
 def main(args=None):
@@ -366,10 +375,10 @@ def main(args=None):
     #ros2 topic list => ros2 topic echo /joint_states --once
     #point.positions =  [0.0, 0.5236, -0.7156, 0.8203]  # (단위: 라디안) <= 0, -44, 9, 72
     #point.positions = [0.0, 0.7317, -0.6918, 0.7701]    
-    point.positions = [0.0, 0.5317, -0.6918, 0.7701] 
+    # point.positions = [0.0, 0.5317, -0.6918, 0.7701] 
 
-    trajectory_msg.points = [point]
-    joint_pub.publish(trajectory_msg)
+    # trajectory_msg.points = [point]
+    # joint_pub.publish(trajectory_msg)
 
     print("Pick and Place Init done")
 
@@ -380,8 +389,11 @@ def main(args=None):
             node.finish_move = False
             break
 
-    node.destroy_node()
-    rclpy.shutdown()
+    print("Pick and Place done")
+    node.finish_publisher.publish(Bool(data=node.finish_move))
+    # node.destroy_node()
+    # rclpy.shutdown()
 
 if __name__ == '__main__':
+    
     main()

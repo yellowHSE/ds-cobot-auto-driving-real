@@ -307,22 +307,22 @@ class DetectTrafficLight(Node):
         is_green  = self._find_circle_and_validate(mask_green,  'green')  if green_ok  else False
 
         # 라벨 텍스트
-        if is_red:
-            cv2.putText(self.latest_bgr, 'RED', (self.last_circle_x, self.last_circle_y),
-                        cv2.FONT_HERSHEY_DUPLEX, 0.5, (0, 0, 255), 1)
-        if is_yellow:
-            cv2.putText(self.latest_bgr, 'YELLOW', (self.last_circle_x, self.last_circle_y),
-                        cv2.FONT_HERSHEY_DUPLEX, 0.5, (0, 255, 255), 1)
-        if is_green:
-            cv2.putText(self.latest_bgr, 'GREEN', (self.last_circle_x, self.last_circle_y),
-                        cv2.FONT_HERSHEY_DUPLEX, 0.5, (0, 255, 0), 1)
+        # if is_red:
+        #     cv2.putText(self.latest_bgr, 'RED', (self.last_circle_x, self.last_circle_y),
+        #                 cv2.FONT_HERSHEY_DUPLEX, 0.5, (0, 0, 255), 1)
+        # if is_yellow:
+        #     cv2.putText(self.latest_bgr, 'YELLOW', (self.last_circle_x, self.last_circle_y),
+        #                 cv2.FONT_HERSHEY_DUPLEX, 0.5, (0, 255, 255), 1)
+        # if is_green:
+        #     cv2.putText(self.latest_bgr, 'GREEN', (self.last_circle_x, self.last_circle_y),
+        #                 cv2.FONT_HERSHEY_DUPLEX, 0.5, (0, 255, 0), 1)
 
         # 상태 퍼블리시
         instant_state = 'red' if is_red else 'yellow' if is_yellow else 'green' if is_green else 'none'
         self._update_state_and_maybe_publish(instant_state)
 
         # rqt 스트림 확인용 고정 텍스트
-        cv2.putText(self.latest_bgr, f'DBG state={instant_state}', (10, 30),
+        cv2.putText(self.latest_bgr, f'Traffic state={instant_state}', (10, 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
 
         # 디버그 프레임 퍼블리시
@@ -367,7 +367,7 @@ class DetectTrafficLight(Node):
             # 후검증 OFF: 허프가 잡으면 즉시 통과
             if not ENABLE_VALIDATION:
                 self.last_circle_x, self.last_circle_y = cx, cy
-                cv2.circle(self.latest_bgr, (cx, cy), r, (255, 0, 0), 2)
+                # cv2.circle(self.latest_bgr, (cx, cy), r, (255, 0, 0), 2)
                 self.get_logger().info(f'{color} detected (NO post-validation, r={r})')
                 return True
 

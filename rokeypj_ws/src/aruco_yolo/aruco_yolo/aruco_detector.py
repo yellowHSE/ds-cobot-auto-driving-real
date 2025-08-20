@@ -90,7 +90,7 @@ class ArucoMarkerDetector(Node):
 
         self.subscription = self.create_subscription(
             CompressedImage,
-            'image_raw/compressed',
+            '/camera/image_raw/compressed',
             self.listener_callback,
             10)
 

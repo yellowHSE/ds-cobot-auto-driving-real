@@ -65,7 +65,7 @@ def generate_launch_description():
             output='screen',
             remappings=[
                 ('/control/lane', '/detect/lane'),
-                ('/control/cmd_vel', '/cmd_vel')
+                # ('/control/cmd_vel', '/cmd_vel')
             ]
         )
     return LaunchDescription([

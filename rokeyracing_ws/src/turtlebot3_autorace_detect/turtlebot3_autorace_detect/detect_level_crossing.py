@@ -259,7 +259,7 @@ class DetectLevelNode(Node):
 
             pub_level_crossing_return.data = self.StepOfLevelCrossing.exit.value
 
-        self.get_logger().info(pub_level_crossing_return.data)
+        # self.get_logger().info(pub_level_crossing_return.data)
         time.sleep(3.0)
 
     def find_level(self):
@@ -368,7 +368,7 @@ class DetectLevelNode(Node):
         thickness = float(min(w, h))  # 막대 두께(짧은 변)
         length = float(max(w, h))     # 막대 길이(긴 변)
 
-        self.get_logger().info(f"cx = {cx}, cy = {cy}")
+        # self.get_logger().info(f"cx = {cx}, cy = {cy}")
 
 
         # 방향 벡터(주축) 추정: fitLine이 노이즈에 비교적 강함
@@ -414,24 +414,24 @@ class DetectLevelNode(Node):
         #         is_level_close = True      # stop
         #         self.stop_bar_state = 'stop'
         #         self.get_logger().info(f"{self.stop_bar_state} (d={distance_bar2car:.2f})")
-
+        # self.get_logger().info(f"{abs(slope)}")
         if not (dx == 0 or abs(slope) > 2.0) :
             # 두께 기반 근접도: 가까울수록 thickness ↑ → 지표 ↓
             # 기존 로직과 단조 방향을 맞추기 위해 scale / thickness 사용
             SCALE_K = 50.0  # 필요시 조정; 카메라/FOV/해상도에 따라 달라짐
             distance_bar2car = SCALE_K / (thickness + 1e-6)
             self.stop_bar_count = 50
-            self.get_logger().info(f"{distance_bar2car}")
-            self.get_logger().info(f"{distance_bar2car}")
+            # self.get_logger().info(f"{distance_bar2car}")
+            # self.get_logger().info(f"{distance_bar2car}")
 
-            if cy >= 150:
+            if cy >= 100 and cx <= 200:
                 is_level_detected = True      # stop
                 self.stop_bar_state = 'stop'
-                self.get_logger().info(f"{self.stop_bar_state} (d={distance_bar2car:.2f})")
-            else:
+                self.get_logger().info(f"{self.stop_bar_state}")
+            elif cy < 100:
                 is_level_detected = True   # slowdown
                 self.stop_bar_state = 'slowdown'
-                self.get_logger().info(f"{self.stop_bar_state} (d={distance_bar2car:.2f})")
+                self.get_logger().info(f"{self.stop_bar_state}")
         else:
             is_level_opened = True
             self.stop_bar_state = 'go'

@@ -15,6 +15,8 @@ Date: 2025-06-16
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node, PushRosNamespace
 
 def generate_launch_description():
     return LaunchDescription([
@@ -27,7 +29,11 @@ def generate_launch_description():
             'video_port', #Error if argument name is videoport
             default_value='0',  # string, but will be interpreted as int
             description='/dev/video*'
-        ),         
+        ),     
+
+        DeclareLaunchArgument('namespace', default_value='camera'),
+        PushRosNamespace(LaunchConfiguration('namespace')), 
+
         Node(
             package='aruco_yolo',
             executable='compressed_image_pub',

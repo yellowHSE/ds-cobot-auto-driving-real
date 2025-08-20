@@ -19,10 +19,8 @@
 from geometry_msgs.msg import Twist
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Bool
-from std_msgs.msg import Float64
-from std_msgs.msg import String
-from aruco_yolo.aruco_pick_and_place import ArucoMarkerListener
+from std_msgs.msg import Bool, Float64, Float32, String
+from aruco_msgs.msg import MarkerArray
 
 
 class ControlLane(Node):
@@ -71,15 +69,30 @@ class ControlLane(Node):
             1
         )
 
-        self.pub_cmd_vel = self.create_publisher(
-            Twist,
-            '/control/cmd_vel',
+        self.sub_markers = self.create_subscription(
+            MarkerArray,
+            '/camera/detected_markers', 
+            self.cb_markers, 
+            10
+        )
+
+        self.sub_aruco_dist = self.create_subscription(
+            Float32, 
+            '/aruco/distance', 
+            self.cb_aruco_distance, 
+            10
+        )
+
+        self.aruco_seen_publisher = self.create_subscription(
+            Bool,
+            '/pick_and_place_finish',
+            self.cb_aruco_finish,
             1
         )
 
         self.pub_cmd_vel = self.create_publisher(
             Twist,
-            '/control/cmd_vel',
+            '/cmd_vel',
             1
         )
 
@@ -92,7 +105,13 @@ class ControlLane(Node):
         self.avoid_twist = Twist()
         self.stop_bar = 'go'
 
-        self.aruco = ArucoMarkerListener()
+
+        # 아루코 관련 상태
+        self.aruco_seen = False
+        self.aruco_distance = None
+        self.aruco_target_id = self.declare_parameter('aruco_target_id', 1).value
+        self.ARUCO_STOP_DIST = self.declare_parameter('aruco_stop_distance', 0.48).value
+
 
     def callback_get_max_vel(self, max_vel_msg):
         self.MAX_VEL = max_vel_msg.data
@@ -114,6 +133,24 @@ class ControlLane(Node):
         elif self.traffic_light_state == 'yellow':
             # 노란불 처리 필요하면 여기 작성
             pass
+    
+    # ---------------- ArUco 콜백 ----------------
+    def cb_markers(self, msg: MarkerArray):
+        # target id 보이면 플래그 ON
+        for m in msg.markers:
+            if int(m.id) == int(self.aruco_target_id):
+                self.aruco_seen = True
+                return
+        # 프레임에 target이 없으면 false로 내려도 되고, 유지하고 싶으면 주석
+        self.aruco_seen = False
+
+    def cb_aruco_distance(self, msg: Float32):
+        self.aruco_distance = float(msg.data)
+
+    def cb_aruco_finish(self, msg: Bool):
+        self.aruco_seen = msg.data
+        self.get_logger().info(f'{self.aruco_seen}')
+
 
     def callback_follow_lane(self, desired_center):
         """
@@ -122,40 +159,54 @@ class ControlLane(Node):
         If avoidance mode is enabled, lane following control is ignored.
         
         """
+        
         if self.avoid_active:
             return
+        
 
         if self.stop_bar == 'slowdown':
             slowdown = Twist()
             slowdown.linear.x = min(self.MAX_VEL * 0.3, 0.05)
             self.pub_cmd_vel.publish(slowdown)
             self.get_logger().info(f'slow_down: {slowdown.linear.x}')
-        elif self.stop_bar == 'stop' or self.traffic_light_state == 'red':
+            return
+        if self.stop_bar == 'stop' or self.traffic_light_state in ['red', 'yellow']:
             stop = Twist()
             stop.linear.x = 0.0
             self.pub_cmd_vel.publish(stop)
             self.get_logger().info(f'self.stop_bar: {self.stop_bar}')
             self.get_logger().info(f'self.traffic_light_state: {self.traffic_light_state}')
             self.get_logger().info(f'stop: {stop.linear.x}')
-        elif len(self.aruco.marker) > 0:
-            self.aruco.aruco_move_pick(self.aruco)
-        else:
-            center = desired_center.data
-            error = center - 460
+            return
+        
+        # ★ 아루코가 가까이 있으면 정지 혹은 저속 주행 (팔 제어는 다른 노드가 함)
+        if self.aruco_seen and self.aruco_distance is not None:
+            if self.aruco_distance <= self.ARUCO_STOP_DIST:
+                self.pub_cmd_vel.publish(Twist())  # 정지
+                return
+            elif self.aruco_distance <= (self.ARUCO_STOP_DIST + 0.2):
+                t = Twist(); 
+                t.linear.x = min(self.MAX_VEL * 0.2, 0.03)
+                self.pub_cmd_vel.publish(t)
+                return
+        
+        self.get_logger().info('basic')
+        center = desired_center.data
+        error = center - 460
 
-            Kp = 0.0025
-            Kd = 0.007
+        Kp = 0.0025
+        Kd = 0.007
 
-            angular_z = Kp * error + Kd * (error - self.last_error)
-            self.last_error = error
+        angular_z = Kp * error + Kd * (error - self.last_error)
+        self.last_error = error
 
-            twist = Twist()
-            # Linear velocity: adjust speed based on error (maximum 0.05 limit)
-            # twist.linear.x = min(self.MAX_VEL * (max(1 - abs(error) / 500, 0) ** 2.2), 0.05)--------------------------------------------
-            twist.linear.x = min(self.MAX_VEL * (max(1 - abs(error) / 460, 0) ** 1.7), 0.05)
-            twist.angular.z = -max(angular_z, -2.0) if angular_z < 0 else -min(angular_z, 2.0)
-            self.pub_cmd_vel.publish(twist)
-            self.get_logger().info(f'basic: {twist.linear.x}')
+        twist = Twist()
+        # Linear velocity: adjust speed based on error (maximum 0.05 limit)
+        # twist.linear.x = min(self.MAX_VEL * (max(1 - abs(error) / 500, 0) ** 2.2), 0.05)--------------------------------------------
+        twist.linear.x = min(self.MAX_VEL * (max(1 - abs(error) / 460, 0) ** 1.7), 0.05)
+        twist.angular.z = -max(angular_z, -2.0) if angular_z < 0 else -min(angular_z, 2.0)
+        self.pub_cmd_vel.publish(twist)
+        self.get_logger().info(f'basic: {twist.linear.x}')
 
     def callback_avoid_cmd(self, twist_msg):
         self.avoid_twist = twist_msg
@@ -173,14 +224,10 @@ class ControlLane(Node):
     def callback_stop_bar(self, msg: String):
         self.stop_bar = msg.data
 
-
-
-
     def shut_down(self):
         self.get_logger().info('Shutting down. cmd_vel will be 0')
         twist = Twist()
         self.pub_cmd_vel.publish(twist)
-
 
 def main(args=None):
     rclpy.init(args=args)

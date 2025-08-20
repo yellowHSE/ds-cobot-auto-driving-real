@@ -75,7 +75,7 @@ class DetectLane(Node):
                 CompressedImage, '/detect/image_input/compressed', self.cbFindLane, 10)
         else:
             self.sub_image_original = self.create_subscription(
-                Image, '/detect/image_input', self.cbFindLane, 1)
+                Image, '/detect/image_input', self.cbFindLane, 10)
 
         if self.pub_image_type == 'compressed':
             self.pub_image_lane = self.create_publisher(
