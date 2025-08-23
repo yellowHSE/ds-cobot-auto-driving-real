@@ -28,7 +28,6 @@ setup(
             'aruco_detector = aruco_yolo.aruco_detector:main',
             'aruco_move = aruco_yolo.aruco_move:main',
             'moveit_client = aruco_yolo.moveit_client:main',
-            'pick_n_place = aruco_yolo.pick_n_place:main',
             'pick_and_place = aruco_yolo.pick_and_place:main',            
             'aruco_pick_and_place = aruco_yolo.aruco_pick_and_place:main',            
             'compressed_image_pub = aruco_yolo.compressed_image_pub:main',
